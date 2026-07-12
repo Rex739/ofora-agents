@@ -19,6 +19,7 @@ import {
   X
 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { OforaBrand } from "@/components/brand/ofora-brand";
 import { Button } from "@/components/ui/button";
 import { AGENT_PRICE_CENTS, AGENT_PRICES, formatUsdcCents, ORCHESTRATION_MARGIN, SAFETY_DISCLAIMER, SPECIALIST_SPEND, SYNTHETIC_CASE_NOTICE, USER_PRICE } from "@/lib/constants";
 import type { AgentName, AgentRun, OrchestrationRun, TenderPacketInput } from "@/lib/schemas/ofora";
@@ -608,7 +609,9 @@ function SidebarContent({ activeView, onChange, hideBrand = false }: { activeVie
 function CompactSidebar({ activeView, onChange }: { activeView: WorkspaceView; onChange: (view: WorkspaceView) => void }) {
   return (
     <div className="flex h-full flex-col items-center gap-5">
-      <Link href="/" aria-label="Ofora home" className="text-2xl font-black">O<span className="text-ofora-lime">A</span></Link>
+      <Link href="/" aria-label="Ofora home" className="ofora-focus rounded-md">
+        <OforaBrand markOnly className="text-white" markClassName="h-10 w-10 min-[380px]:h-10 min-[380px]:w-10" />
+      </Link>
       <nav className="flex flex-col gap-2">
         {sidebarItems.map((item) => {
           const Icon = item.icon;

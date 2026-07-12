@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Ofora Agents",
-  description: "Paid agent-to-agent coordination for confidential procurement award validation."
+  description: "Paid A2A procurement integrity agents powered by CROO CAP."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

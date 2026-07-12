@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Search } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { LandingFooter } from "@/components/landing/footer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,8 +25,9 @@ const safetyBoundaries = [
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-ofora-canvas text-ofora-ink">
-      <header className="sticky top-0 z-30 border-b border-ofora-deep/10 bg-white/94 backdrop-blur">
+    <>
+      <main className="min-h-screen bg-ofora-canvas text-ofora-ink">
+        <header className="sticky top-0 z-30 border-b border-ofora-deep/10 bg-white/94 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="text-2xl"><Wordmark /></Link>
           <nav className="hidden items-center gap-8 text-sm font-semibold text-ofora-muted lg:flex">
@@ -119,8 +121,10 @@ export default function LandingPage() {
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-ofora-muted">For procurement review only. Does not expose confidential supplier bids, replace procurement officers, guarantee legal compliance, or publish raw commercial proposals.</p>
           <Link href="/workspace" className="mt-7 inline-flex"><Button size="lg" className="ofora-focus rounded-full px-6 font-black transition duration-200 hover:-translate-y-0.5">Open demo tender<ArrowUpRight className="h-4 w-4" /></Button></Link>
         </div>
-      </section>
-    </main>
+        </section>
+      </main>
+      <LandingFooter />
+    </>
   );
 }
 
