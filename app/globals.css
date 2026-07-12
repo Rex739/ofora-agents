@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 120 25% 98%;
+  --foreground: 143 27% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 143 27% 11%;
+  --primary: 153 81% 12%;
+  --primary-foreground: 120 25% 98%;
+  --secondary: 144 26% 94%;
+  --secondary-foreground: 143 27% 11%;
+  --muted: 120 11% 96%;
+  --muted-foreground: 145 7% 43%;
+  --accent: 76 75% 84%;
+  --accent-foreground: 153 81% 12%;
+  --destructive: 0 72% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 135 8% 91%;
+  --input: 135 8% 91%;
+  --ring: 147 68% 39%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #fafcfa;
+}
+
+body {
+  min-height: 100vh;
+  background: #fafcfa;
+  color: hsl(var(--foreground));
+}
+
+::selection {
+  background: rgba(231, 245, 184, 0.9);
+}
+
+@layer components {
+  .ofora-focus {
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ofora-verify;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #111827;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-surface {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+  }
+}

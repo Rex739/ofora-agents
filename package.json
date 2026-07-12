@@ -1,0 +1,46 @@
+{
+  "name": "ofora-agents",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "provider:policy": "node --env-file=.env.local --import tsx scripts/providers/policy-lock.ts",
+    "provider:bids": "node --env-file=.env.local --import tsx scripts/providers/bid-normalizer.ts",
+    "provider:risk": "node --env-file=.env.local --import tsx scripts/providers/supplier-risk.ts",
+    "provider:award": "node --env-file=.env.local --import tsx scripts/providers/award-verifier.ts",
+    "provider:receipt": "node --env-file=.env.local --import tsx scripts/providers/receipt-writer.ts",
+    "recover:policy": "node --env-file=.env.local --import tsx scripts/recover-policy-lock-order.ts"
+  },
+  "dependencies": {
+    "@croo-network/sdk": "latest",
+    "@radix-ui/react-slot": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "next": "^15.1.7",
+    "openai": "^4.85.4",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.0.1",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^9.20.1",
+    "eslint-config-next": "^15.1.7",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
