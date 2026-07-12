@@ -36,6 +36,9 @@ class MockStream {
 function createMockClient(stream: MockStream, deliverableText: string, options: { deliveryFailuresBeforeSuccess?: number; orderStatus?: string } = {}) {
   let payCount = 0;
   let deliveryAttempts = 0;
+  let orderStatus = options.orderStatus ?? "created";
+  let payTxHash = orderStatus === "created" ? "" : "0xpay";
+  let deliverTxHash = orderStatus === "created" ? "" : "0xdeliver";
   return {
     client: {
       connectWebSocket: async () => stream,
@@ -43,13 +46,16 @@ function createMockClient(stream: MockStream, deliverableText: string, options: 
       getOrder: async () => ({
         orderId: "order-1",
         negotiationId: "neg-1",
-        status: options.orderStatus ?? "completed",
-        payTxHash: "0xpay",
-        deliverTxHash: "0xdeliver"
+        status: orderStatus,
+        payTxHash,
+        deliverTxHash
       }),
       payOrder: async () => {
         payCount += 1;
-        return { txHash: "0xpay", order: { payTxHash: "0xpay" } };
+        orderStatus = "paid";
+        payTxHash = "0xpay";
+        deliverTxHash = "0xdeliver";
+        return { txHash: "0xpay", order: { status: orderStatus, payTxHash } };
       },
       getDelivery: async () => ({
         ...getMockDelivery()

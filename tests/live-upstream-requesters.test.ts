@@ -4,6 +4,7 @@ import type { Event } from "@croo-network/sdk";
 import { runBidNormalizer } from "@/lib/agents/bid-normalizer";
 import { runPolicyLock } from "@/lib/agents/policy-lock";
 import { runSupplierRisk } from "@/lib/agents/supplier-risk";
+import { resetCoordinatorPaymentQueueForTests } from "@/lib/croo/coordinator-payment-queue";
 import { demoTender } from "@/lib/demo/case";
 import { requestLiveBidNormalizerCore } from "@/lib/croo/request-bid-normalizer-core";
 import { requestLivePolicyLockCore } from "@/lib/croo/request-policy-lock-core";
@@ -41,16 +42,21 @@ function createMockClient({
   stream,
   negotiationId,
   orderId,
-  deliverableText
+  deliverableText,
+  payDelayMs = 0
 }: {
   stream: MockStream;
   negotiationId: string;
   orderId: string;
   deliverableText: string;
+  payDelayMs?: number;
 }) {
   let payCount = 0;
   let negotiateCount = 0;
   let listenerCountAtNegotiate = 0;
+  let orderStatus = "created";
+  let payTxHash = "";
+  let deliverTxHash = "";
   return {
     client: {
       connectWebSocket: async () => stream,
@@ -62,13 +68,17 @@ function createMockClient({
       getOrder: async () => ({
         orderId,
         negotiationId,
-        status: "completed",
-        payTxHash: `0xpay-${orderId}`,
-        deliverTxHash: `0xdeliver-${orderId}`
+        status: orderStatus,
+        payTxHash,
+        deliverTxHash
       }),
       payOrder: async () => {
         payCount += 1;
-        return { txHash: `0xpay-${orderId}`, order: { payTxHash: `0xpay-${orderId}` } };
+        if (payDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, payDelayMs));
+        orderStatus = "paid";
+        payTxHash = `0xpay-${orderId}`;
+        deliverTxHash = `0xdeliver-${orderId}`;
+        return { txHash: `0xpay-${orderId}`, order: { status: orderStatus, payTxHash } };
       },
       getDelivery: async () => ({
         deliveryId: `delivery-${orderId}`,
@@ -93,6 +103,7 @@ function createMockClient({
 }
 
 test("BidNormalizer live success validates output and pays at most once", async () => {
+  resetCoordinatorPaymentQueueForTests();
   const stream = new MockStream();
   const output = await runBidNormalizer(demoTender);
   const mock = createMockClient({ stream, negotiationId: "bid-neg-1", orderId: "bid-order-1", deliverableText: JSON.stringify(output) });
@@ -120,6 +131,7 @@ test("BidNormalizer live success validates output and pays at most once", async 
 });
 
 test("SupplierRisk live success validates output and pays at most once", async () => {
+  resetCoordinatorPaymentQueueForTests();
   const stream = new MockStream();
   const output = await runSupplierRisk(demoTender);
   const mock = createMockClient({ stream, negotiationId: "risk-neg-1", orderId: "risk-order-1", deliverableText: JSON.stringify(output) });
@@ -147,6 +159,7 @@ test("SupplierRisk live success validates output and pays at most once", async (
 });
 
 test("three upstream live requesters can negotiate in parallel", async () => {
+  resetCoordinatorPaymentQueueForTests();
   const policyStream = new MockStream();
   const bidStream = new MockStream();
   const riskStream = new MockStream();
@@ -194,6 +207,50 @@ test("three upstream live requesters can negotiate in parallel", async () => {
   assert.equal(bidResult.output.agent, "BidNormalizer");
   assert.equal(riskResult.output.agent, "SupplierRisk");
   assert.equal(policy.getPayCount() + bid.getPayCount() + risk.getPayCount(), 3);
+});
+
+test("payment queue wait does not consume delivery timeout", async () => {
+  resetCoordinatorPaymentQueueForTests();
+  const slowStream = new MockStream();
+  const queuedStream = new MockStream();
+  const slow = createMockClient({
+    stream: slowStream,
+    negotiationId: "slow-neg",
+    orderId: "slow-order",
+    deliverableText: JSON.stringify(await runBidNormalizer(demoTender)),
+    payDelayMs: 45
+  });
+  const queued = createMockClient({
+    stream: queuedStream,
+    negotiationId: "queued-neg",
+    orderId: "queued-order",
+    deliverableText: JSON.stringify(await runSupplierRisk(demoTender))
+  });
+
+  const slowPromise = requestLiveBidNormalizerCore(demoTender, () => undefined, {
+    createClient: async () => slow.client as never,
+    constants: { EventType },
+    serviceId: "bid-service",
+    timeoutMs: 20,
+    reconciliationIntervalMs: 5
+  });
+  const queuedPromise = requestLiveSupplierRiskCore(demoTender, () => undefined, {
+    createClient: async () => queued.client as never,
+    constants: { EventType },
+    serviceId: "risk-service",
+    timeoutMs: 20,
+    reconciliationIntervalMs: 5
+  });
+
+  await tick();
+  slowStream.emit(EventType.OrderCreated, { negotiation_id: "slow-neg", order_id: "slow-order", service_id: "bid-service" });
+  queuedStream.emit(EventType.OrderCreated, { negotiation_id: "queued-neg", order_id: "queued-order", service_id: "risk-service" });
+
+  const [slowResult, queuedResult] = await Promise.all([slowPromise, queuedPromise]);
+  assert.equal(slowResult.output.agent, "BidNormalizer");
+  assert.equal(queuedResult.output.agent, "SupplierRisk");
+  assert.equal(slow.getPayCount(), 1);
+  assert.equal(queued.getPayCount(), 1);
 });
 
 function tick() {

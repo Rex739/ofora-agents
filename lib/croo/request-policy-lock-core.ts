@@ -1,5 +1,6 @@
 import type { Event, EventStream } from "@croo-network/sdk";
 import { createPolicyLockRequirements } from "@/lib/agents/policy-lock-requirements";
+import { payCoordinatorOrder } from "@/lib/croo/coordinator-payment-queue";
 import { CrooDeliveryError, CrooTimeoutError, normalizeCrooError } from "@/lib/croo/errors";
 import { PolicyLockOutputSchema, type AgentRun, type PolicyLockOutput, type TenderPacketInput } from "@/lib/schemas/ofora";
 import type { CrooAgentClient, PolicyLockLifecycleStatus } from "@/lib/croo/types";
@@ -92,12 +93,17 @@ export async function requestLivePolicyLockCore(
     stream = await client.connectWebSocket();
 
     return await new Promise<LivePolicyLockResult>((resolve, reject) => {
-      timeout = setTimeout(() => {
+      const armTimeout = (message: () => string) => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => fail(reject, new CrooTimeoutError(message())), deps.timeoutMs);
+      };
+
+      armTimeout(() => {
         const message = paymentSucceeded
           ? `PolicyLock payment succeeded, but delivery confirmation was not received before timeout. Last order status: ${lastOrderStatus ?? "unknown"}.`
           : `PolicyLock did not accept the CAP negotiation before timeout. Last order status: ${lastOrderStatus ?? "unknown"}.`;
-        fail(reject, new CrooTimeoutError(message));
-      }, deps.timeoutMs);
+        return message;
+      });
 
       stream?.on(deps.constants.EventType.OrderCreated, (event) => {
         if (!matchesNegotiation(event, negotiationId, deps.serviceId) || !event.order_id || paid) return;
@@ -105,14 +111,16 @@ export async function requestLivePolicyLockCore(
         orderId = event.order_id;
         emit({ status: "order_created", orderId });
         emit({ status: "payment_pending", orderId });
-        void client.payOrder(orderId)
+        if (timeout) clearTimeout(timeout);
+        void payCoordinatorOrder({ agentLabel: "PolicyLock", client, orderId })
           .then((payment) => {
             paymentSucceeded = true;
-            paymentTxHash = payment.txHash || undefined;
-            lastOrderStatus = payment.order?.status || lastOrderStatus;
-            receiptReference = payment.order?.payTxHash || paymentTxHash;
+            paymentTxHash = payment.paymentTxHash || undefined;
+            lastOrderStatus = payment.orderStatus || lastOrderStatus;
+            receiptReference = payment.receiptReference || paymentTxHash;
             emit({ status: "paid", orderId, paymentTxHash, receiptReference });
             emit({ status: "awaiting_delivery", orderId, paymentTxHash, receiptReference });
+            armTimeout(() => `PolicyLock payment succeeded, but delivery confirmation was not received before timeout. Last order status: ${lastOrderStatus ?? "unknown"}.`);
             startReconciliation(client, resolve, reject, emit);
           })
           .catch((error: unknown) => fail(reject, error));
