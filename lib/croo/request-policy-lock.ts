@@ -1,8 +1,11 @@
 import "server-only";
 import { createCoordinatorClient, getCrooSdkConstants } from "@/lib/croo/client";
 import { getCapOrderTimeoutMs, getPolicyLockServiceId } from "@/lib/croo/config";
+import { createPolicyLockRequirements } from "@/lib/agents/policy-lock-requirements";
+import { getSharedCoordinatorRuntime } from "@/lib/croo/coordinator-runtime";
 import {
   mapPolicyLockUpdateToAgentRun,
+  parsePolicyLockDelivery,
   recoverLivePolicyLockOrder as recoverLivePolicyLockOrderCore,
   requestLivePolicyLockCore,
   type LivePolicyLockResult,
@@ -19,11 +22,25 @@ export async function requestLivePolicyLock(
   deps: RequestDeps = {}
 ): Promise<LivePolicyLockResult> {
   const constants = deps.constants ?? await getCrooSdkConstants();
+  const serviceId = deps.serviceId ?? getPolicyLockServiceId();
+  const timeoutMs = deps.timeoutMs ?? getCapOrderTimeoutMs();
+  if (!deps.createClient) {
+    return getSharedCoordinatorRuntime({ createClient: createCoordinatorClient, constants }).request({
+      agentLabel: "PolicyLock",
+      serviceId,
+      requirements: createPolicyLockRequirements(tender),
+      parseDelivery: parsePolicyLockDelivery,
+      onStatus,
+      timeoutMs,
+      reconciliationIntervalMs: deps.reconciliationIntervalMs
+    });
+  }
   return requestLivePolicyLockCore(tender, onStatus, {
-    createClient: deps.createClient ?? createCoordinatorClient,
+    createClient: deps.createClient,
     constants,
-    serviceId: deps.serviceId ?? getPolicyLockServiceId(),
-    timeoutMs: deps.timeoutMs ?? getCapOrderTimeoutMs()
+    serviceId,
+    timeoutMs,
+    reconciliationIntervalMs: deps.reconciliationIntervalMs
   });
 }
 

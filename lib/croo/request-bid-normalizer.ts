@@ -1,8 +1,11 @@
 import "server-only";
 import { createCoordinatorClient, getCrooSdkConstants } from "@/lib/croo/client";
 import { getBidNormalizerServiceId, getCapOrderTimeoutMs } from "@/lib/croo/config";
+import { getSharedCoordinatorRuntime } from "@/lib/croo/coordinator-runtime";
 import {
+  createBidNormalizerRequirements,
   mapLiveAgentUpdateToAgentRun,
+  parseBidNormalizerDelivery,
   requestLiveBidNormalizerCore,
   type BidNormalizerLifecycleUpdate,
   type LiveBidNormalizerResult,
@@ -18,11 +21,24 @@ export async function requestLiveBidNormalizer(
   deps: RequestDeps = {}
 ): Promise<LiveBidNormalizerResult> {
   const constants = deps.constants ?? await getCrooSdkConstants();
+  const serviceId = deps.serviceId ?? getBidNormalizerServiceId();
+  const timeoutMs = deps.timeoutMs ?? getCapOrderTimeoutMs();
+  if (!deps.createClient) {
+    return getSharedCoordinatorRuntime({ createClient: createCoordinatorClient, constants }).request({
+      agentLabel: "BidNormalizer",
+      serviceId,
+      requirements: createBidNormalizerRequirements(tender),
+      parseDelivery: parseBidNormalizerDelivery,
+      onStatus,
+      timeoutMs,
+      reconciliationIntervalMs: deps.reconciliationIntervalMs
+    });
+  }
   return requestLiveBidNormalizerCore(tender, onStatus, {
-    createClient: deps.createClient ?? createCoordinatorClient,
+    createClient: deps.createClient,
     constants,
-    serviceId: deps.serviceId ?? getBidNormalizerServiceId(),
-    timeoutMs: deps.timeoutMs ?? getCapOrderTimeoutMs(),
+    serviceId,
+    timeoutMs,
     reconciliationIntervalMs: deps.reconciliationIntervalMs
   });
 }

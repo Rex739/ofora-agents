@@ -1,8 +1,11 @@
 import "server-only";
 import { createCoordinatorClient, getCrooSdkConstants } from "@/lib/croo/client";
 import { getCapOrderTimeoutMs, getSupplierRiskServiceId } from "@/lib/croo/config";
+import { getSharedCoordinatorRuntime } from "@/lib/croo/coordinator-runtime";
 import {
+  createSupplierRiskRequirements,
   mapLiveAgentUpdateToAgentRun,
+  parseSupplierRiskDelivery,
   requestLiveSupplierRiskCore,
   type LiveSupplierRiskResult,
   type RequestSupplierRiskDeps,
@@ -18,11 +21,24 @@ export async function requestLiveSupplierRisk(
   deps: RequestDeps = {}
 ): Promise<LiveSupplierRiskResult> {
   const constants = deps.constants ?? await getCrooSdkConstants();
+  const serviceId = deps.serviceId ?? getSupplierRiskServiceId();
+  const timeoutMs = deps.timeoutMs ?? getCapOrderTimeoutMs();
+  if (!deps.createClient) {
+    return getSharedCoordinatorRuntime({ createClient: createCoordinatorClient, constants }).request({
+      agentLabel: "SupplierRisk",
+      serviceId,
+      requirements: createSupplierRiskRequirements(tender),
+      parseDelivery: parseSupplierRiskDelivery,
+      onStatus,
+      timeoutMs,
+      reconciliationIntervalMs: deps.reconciliationIntervalMs
+    });
+  }
   return requestLiveSupplierRiskCore(tender, onStatus, {
-    createClient: deps.createClient ?? createCoordinatorClient,
+    createClient: deps.createClient,
     constants,
-    serviceId: deps.serviceId ?? getSupplierRiskServiceId(),
-    timeoutMs: deps.timeoutMs ?? getCapOrderTimeoutMs(),
+    serviceId,
+    timeoutMs,
     reconciliationIntervalMs: deps.reconciliationIntervalMs
   });
 }
